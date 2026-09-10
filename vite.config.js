@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon-192.png", "icon-512.png"],
+      includeAssets: ["icon-192.png", "icon-512.png", "apple-touch-icon.png"],
       workbox: {
         // Alles Gebaute wird precacht -> App laeuft komplett offline
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
@@ -33,4 +33,11 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./tests/setup.js"],
+    include: ["tests/**/*.test.{js,jsx}"],
+    coverage: { include: ["src/**"], reporter: ["text", "html"] },
+  },
 });
