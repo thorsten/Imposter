@@ -1,2 +1,16 @@
+# Hook-Installation laeuft ueber das prepare-Script, der Postinstall-Build
+# von simple-git-hooks wird nicht gebraucht.
 allowBuilds:
-  simple-git-hooks: set this to true or false
+  simple-git-hooks: false
+
+# node_modules wird sowohl vom Mac-Host als auch aus der Linux-Sandbox/CI
+# benutzt — native Bindings (rolldown, sharp) fuer beide Plattformen laden.
+supportedArchitectures:
+  os:
+    - darwin
+    - linux
+  cpu:
+    - arm64
+    - x64
+  libc:
+    - glibc
