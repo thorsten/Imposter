@@ -19,11 +19,16 @@ describe("Wortlisten", () => {
     expect(CATEGORIES.map((c) => c.id)).not.toContain("mix");
   });
 
-  it.each(CATEGORIES.map((c) => [c.id, c]))("%s: 24 eindeutige, nicht leere Woerter", (_id, cat) => {
-    expect(cat.words).toHaveLength(24);
-    expect(new Set(cat.words).size).toBe(24);
-    expect(cat.words.every((w) => typeof w === "string" && w.trim() === w && w.length > 0)).toBe(true);
-  });
+  it.each(CATEGORIES.map((c) => [c.id, c]))(
+    "%s: 24 eindeutige, nicht leere Woerter",
+    (_id, cat) => {
+      expect(cat.words).toHaveLength(24);
+      expect(new Set(cat.words).size).toBe(24);
+      expect(cat.words.every((w) => typeof w === "string" && w.trim() === w && w.length > 0)).toBe(
+        true,
+      );
+    },
+  );
 
   it("verteilt kein Wort ueber zwei Kategorien", () => {
     const all = CATEGORIES.flatMap((c) => c.words);
@@ -81,6 +86,7 @@ describe("buildRound", () => {
   it("nimmt die angefragte Kategorie", () => {
     const round = buildRound({ names, categoryId: "tiere", impostorCount: 1 });
     const tiere = CATEGORIES.find((c) => c.id === "tiere");
+    if (!tiere) throw new Error("Kategorie 'tiere' fehlt");
     expect(round.category).toBe(tiere.name);
     expect(tiere.words).toContain(round.word);
   });
@@ -88,11 +94,14 @@ describe("buildRound", () => {
   it("zieht bei 'mix' aus irgendeiner Kategorie", () => {
     const round = buildRound({ names, categoryId: "mix", impostorCount: 1 });
     const cat = CATEGORIES.find((c) => c.name === round.category);
+    if (!cat) throw new Error(`Kategorie '${round.category}' fehlt`);
     expect(cat.words).toContain(round.word);
   });
 
   it("wirft bei unbekannter Kategorie", () => {
-    expect(() => buildRound({ names, categoryId: "quatsch", impostorCount: 1 })).toThrow(/Unbekannte Kategorie/);
+    expect(() => buildRound({ names, categoryId: "quatsch", impostorCount: 1 })).toThrow(
+      /Unbekannte Kategorie/,
+    );
   });
 
   it("deckelt impostorCount auf das Maximum der Gruppengroesse", () => {
@@ -112,7 +121,7 @@ describe("buildRound", () => {
   it("ist bei gleichem rng reproduzierbar", () => {
     const seed = () => rngOf(0.1, 0.4, 0.6, 0.2);
     expect(buildRound({ names, categoryId: "mix", impostorCount: 2 }, seed())).toEqual(
-      buildRound({ names, categoryId: "mix", impostorCount: 2 }, seed())
+      buildRound({ names, categoryId: "mix", impostorCount: 2 }, seed()),
     );
   });
 });

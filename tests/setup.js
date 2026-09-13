@@ -11,7 +11,9 @@ if (typeof window.PointerEvent === "undefined") {
       this.isPrimary = props.isPrimary ?? true;
     }
   }
-  window.PointerEvent = PointerEvent;
+  window.PointerEvent = /** @type {typeof globalThis.PointerEvent} */ (
+    /** @type {unknown} */ (PointerEvent)
+  );
 }
 
 for (const fn of ["setPointerCapture", "releasePointerCapture", "hasPointerCapture"]) {

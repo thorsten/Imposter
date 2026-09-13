@@ -18,13 +18,12 @@ export default function App() {
   const names = players.map((p) => p.trim()).filter(Boolean);
   const canStart = names.length >= 3 && new Set(names).size === names.length;
 
-  useEffect(() => {
-    const cap = maxImpostors(names.length);
-    if (impostorCount > cap) setImpostorCount(cap);
-  }, [names.length, impostorCount]);
+  // Nach dem Entfernen von Spielern kann der gemerkte Wert über dem Deckel
+  // liegen — abgeleitet clampen statt per Effekt zurückzusetzen.
+  const impostors = Math.min(impostorCount, maxImpostors(names.length));
 
   function startRound() {
-    setRound(buildRound({ names, categoryId, impostorCount }));
+    setRound(buildRound({ names, categoryId, impostorCount: impostors }));
     setTurn(0);
     setScreen("pass");
   }
@@ -57,7 +56,7 @@ export default function App() {
           count={names.length}
           categoryId={categoryId}
           setCategoryId={setCategoryId}
-          impostorCount={impostorCount}
+          impostorCount={impostors}
           setImpostorCount={setImpostorCount}
           giveHint={giveHint}
           setGiveHint={setGiveHint}
@@ -81,16 +80,10 @@ export default function App() {
         />
       )}
 
-      {screen === "round" && (
-        <RoundScreen round={round} onResolve={() => setScreen("result")} />
-      )}
+      {screen === "round" && <RoundScreen round={round} onResolve={() => setScreen("result")} />}
 
       {screen === "result" && (
-        <ResultScreen
-          round={round}
-          onAgain={startRound}
-          onHome={() => setScreen("start")}
-        />
+        <ResultScreen round={round} onAgain={startRound} onHome={() => setScreen("start")} />
       )}
     </div>
   );
@@ -105,11 +98,15 @@ function StartScreen({ onNew }) {
     <main className="pad center">
       <div className="mark">
         <span className="mark-line">WER IST</span>
-        <span className="mark-big">DER<br />IMPOSTOR</span>
+        <span className="mark-big">
+          DER
+          <br />
+          IMPOSTOR
+        </span>
       </div>
       <p className="lede">
-        Alle kennen das geheime Wort. Einer nicht. Reihum sagt jeder ein Hinweiswort — und dann
-        wird geraten.
+        Alle kennen das geheime Wort. Einer nicht. Reihum sagt jeder ein Hinweiswort — und dann wird
+        geraten.
       </p>
       <button className="btn btn-torch btn-big" onClick={onNew}>
         Neues Spiel
@@ -119,7 +116,9 @@ function StartScreen({ onNew }) {
         <ol>
           <li>Namen eintragen, Handy reihum weitergeben.</li>
           <li>Jeder schaut sich sein Wort heimlich an.</li>
-          <li>Reihum sagt jeder <em>ein</em> Wort, das zum geheimen Wort passt — aber nicht zu genau.</li>
+          <li>
+            Reihum sagt jeder <em>ein</em> Wort, das zum geheimen Wort passt — aber nicht zu genau.
+          </li>
           <li>Diskutieren, dann auf drei alle gleichzeitig auf einen zeigen.</li>
           <li>Auflösen. Der Impostor gewinnt, wenn er durchkommt oder das Wort errät.</li>
         </ol>
@@ -146,6 +145,8 @@ function PlayersScreen({ players, setPlayers, canStart, onBack, onNext }) {
       <Head onBack={onBack} title="Wer spielt mit?" />
       <ul className="players">
         {players.map((p, i) => (
+          // Sitze sind über die Position identifiziert, es wird nie umsortiert.
+          // oxlint-disable-next-line react/no-array-index-key
           <li key={i}>
             <span className="seat">{i + 1}</span>
             <input
@@ -158,7 +159,11 @@ function PlayersScreen({ players, setPlayers, canStart, onBack, onNext }) {
               aria-label={`Spieler ${i + 1}`}
             />
             {players.length > 3 && (
-              <button className="icon" onClick={() => remove(i)} aria-label={`Spieler ${i + 1} entfernen`}>
+              <button
+                className="icon"
+                onClick={() => remove(i)}
+                aria-label={`Spieler ${i + 1} entfernen`}
+              >
                 ✕
               </button>
             )}
@@ -173,7 +178,9 @@ function PlayersScreen({ players, setPlayers, canStart, onBack, onNext }) {
       )}
 
       <div className="foot">
-        {dupe && <p className="note">Zwei Spieler haben denselben Namen. Mach sie unterscheidbar.</p>}
+        {dupe && (
+          <p className="note">Zwei Spieler haben denselben Namen. Mach sie unterscheidbar.</p>
+        )}
         {!dupe && filled.length < 3 && <p className="note">Ab drei Namen kann es losgehen.</p>}
         <button className="btn btn-torch btn-big" disabled={!canStart} onClick={onNext}>
           Weiter
@@ -183,8 +190,17 @@ function PlayersScreen({ players, setPlayers, canStart, onBack, onNext }) {
   );
 }
 
-function SetupScreen({ count, categoryId, setCategoryId, impostorCount, setImpostorCount,
-  giveHint, setGiveHint, onBack, onStart }) {
+function SetupScreen({
+  count,
+  categoryId,
+  setCategoryId,
+  impostorCount,
+  setImpostorCount,
+  giveHint,
+  setGiveHint,
+  onBack,
+  onStart,
+}) {
   const cap = maxImpostors(count);
   return (
     <main className="pad">
@@ -277,18 +293,24 @@ function RevealScreen({ name, isImpostor, word, hint, last, onDone }) {
     <main className="pad center">
       <p className="reveal-name">{name}</p>
 
-      <div
+      <button
+        type="button"
         className={"pad-hold" + (held ? " open" : "") + (held && isImpostor ? " danger" : "")}
-        role="button"
-        tabIndex={0}
         aria-label="Zum Anzeigen gedrückt halten"
         onPointerDown={show}
         onPointerUp={hide}
         onPointerLeave={hide}
         onPointerCancel={hide}
         onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); show(); } }}
-        onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") hide(); }}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            show();
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " " || e.key === "Enter") hide();
+        }}
       >
         {held ? (
           isImpostor ? (
@@ -309,7 +331,7 @@ function RevealScreen({ name, isImpostor, word, hint, last, onDone }) {
             <span className="sub">Finger drauf lassen</span>
           </>
         )}
-      </div>
+      </button>
 
       <button className="btn btn-torch btn-big" disabled={!seen} onClick={onDone}>
         {seen ? (last ? "Alle haben geschaut" : "Fertig – weitergeben") : "Erst anschauen"}
@@ -378,7 +400,9 @@ function ResultScreen({ round, onAgain, onHome }) {
 function Head({ onBack, title }) {
   return (
     <header className="head">
-      <button className="icon" onClick={onBack} aria-label="Zurück">←</button>
+      <button className="icon" onClick={onBack} aria-label="Zurück">
+        ←
+      </button>
       <h1 className="h1">{title}</h1>
     </header>
   );
@@ -399,12 +423,20 @@ function Timer() {
 
   return (
     <div className={"timer" + (left === 0 ? " done" : "")}>
-      <span className="clock">{mm}:{ss}</span>
+      <span className="clock">
+        {mm}:{ss}
+      </span>
       <div className="timer-btns">
         <button className="btn btn-ghost btn-sm" onClick={() => setRunning(!running)}>
           {running ? "Pause" : left === 0 ? "Abgelaufen" : "Start"}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => { setRunning(false); setLeft(180); }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            setRunning(false);
+            setLeft(180);
+          }}
+        >
           Zurücksetzen
         </button>
       </div>
@@ -568,6 +600,7 @@ function Styles() {
 /* ---- Reveal ---- */
 .reveal-name { font-size: 18px; font-weight: 700; color: var(--torch); }
 .pad-hold {
+  font: inherit; color: inherit; border: 0;
   width: 100%; max-width: 380px; min-height: 260px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; padding: 28px 22px; border-radius: 28px;

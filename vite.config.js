@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -38,6 +38,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.js"],
     include: ["tests/**/*.test.{js,jsx}"],
-    coverage: { include: ["src/**"], reporter: ["text", "html"] },
+    coverage: {
+      // main.jsx ist nur der Mount-Aufruf, in jsdom nicht sinnvoll messbar.
+      include: ["src/**"],
+      exclude: ["src/main.jsx"],
+      reporter: ["text", "html"],
+      thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },
+    },
   },
 });

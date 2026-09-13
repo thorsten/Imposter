@@ -14,8 +14,21 @@ pnpm dev        # dev server
 pnpm build      # static bundle into dist/
 pnpm preview    # test the built app on the LAN (--host is set)
 pnpm test       # run Vitest once
-pnpm coverage   # same, with coverage report
+pnpm coverage   # same, with coverage report (90% thresholds enforced)
+pnpm typecheck  # TypeScript over the JS sources (checkJs)
+pnpm lint       # oxlint
+pnpm fmt        # oxfmt, formats in place (fmt:check in CI)
+pnpm check      # typecheck + lint + fmt:check + test in one go
+pnpm e2e        # Playwright against the built app (needs browsers once:
+                #   pnpm exec playwright install chromium)
+pnpm lhci       # Lighthouse CI against dist/ (needs Chrome)
 ```
+
+A pre-commit hook (installed automatically via `pnpm install`) runs lint and
+format check. CI (GitHub Actions) runs `check` with coverage, the production
+build, the Playwright E2E tests, and Lighthouse CI (score assertions at 90)
+on every push and pull request. Dependabot keeps npm packages and the
+workflow actions current with one grouped PR per week.
 
 `dist/` is purely static — Netlify, Vercel, GitHub Pages, S3, Apache, whatever.
 For deployment under a subdirectory, adjust `base` in `vite.config.js`.
@@ -55,6 +68,9 @@ are testable without the DOM and without mocking.
   deterministic `rng`.
 - `tests/app.test.jsx` — flows through the real screens: name validation,
   impostor cap, hold-to-reveal, resolution.
+- `tests/e2e/` — Playwright against the built app in a real browser
+  (desktop and mobile viewport): a full round plus service-worker
+  registration. Run with `pnpm e2e`.
 
 jsdom does not ship `PointerEvent`; `tests/setup.js` provides the bare
 minimum, otherwise the hold-to-reveal screen can't be operated.

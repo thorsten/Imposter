@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,8 +93,14 @@ describe("Einstellungen", () => {
     await toSetup(user);
 
     expect(screen.getByText(/Ab sechs Spielern/)).toBeInTheDocument();
-    const segment = screen.getByRole("heading", { name: "Wie viele Impostor?" }).nextElementSibling;
-    expect(within(segment).getAllByRole("button").map((b) => b.textContent)).toEqual(["1"]);
+    const segment = /** @type {HTMLElement} */ (
+      screen.getByRole("heading", { name: "Wie viele Impostor?" }).nextElementSibling
+    );
+    expect(
+      within(segment)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["1"]);
   });
 
   it("erlaubt ab sechs Spielern zwei Impostor", async () => {
@@ -102,8 +108,14 @@ describe("Einstellungen", () => {
     render(<App />);
     await toSetup(user, ["Ada", "Bo", "Cem", "Dilan", "Eda", "Finn"]);
 
-    const segment = screen.getByRole("heading", { name: "Wie viele Impostor?" }).nextElementSibling;
-    expect(within(segment).getAllByRole("button").map((b) => b.textContent)).toEqual(["1", "2"]);
+    const segment = /** @type {HTMLElement} */ (
+      screen.getByRole("heading", { name: "Wie viele Impostor?" }).nextElementSibling
+    );
+    expect(
+      within(segment)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["1", "2"]);
   });
 
   it("hat den Kategorie-Hinweis standardmaessig an", async () => {
@@ -127,6 +139,21 @@ describe("Einstellungen", () => {
       expect(screen.getByRole("button", { name: cat.name })).toBeInTheDocument();
     }
     expect(screen.getByRole("button", { name: "Bunt gemischt" })).toBeInTheDocument();
+  });
+
+  it("übernimmt Kategorie- und Impostor-Auswahl", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toSetup(user, ["Ada", "Bo", "Cem", "Dilan", "Eda", "Finn"]);
+
+    await user.click(screen.getByRole("button", { name: "Tiere" }));
+    expect(screen.getByRole("button", { name: "Tiere" })).toHaveClass("on");
+    await user.click(screen.getByRole("button", { name: "Bunt gemischt" }));
+    expect(screen.getByRole("button", { name: "Bunt gemischt" })).toHaveClass("on");
+
+    const two = screen.getByRole("button", { name: "2" });
+    await user.click(two);
+    expect(two).toHaveClass("on");
   });
 });
 
@@ -153,7 +180,9 @@ describe("Runde", () => {
       expect(screen.getByRole("button", { name: "Erst anschauen" })).toBeDisabled();
       seen.push(await peek(user));
 
-      await user.click(screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }));
+      await user.click(
+        screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }),
+      );
     }
 
     const impostors = seen.filter((t) => t.includes("Du bist der Impostor"));
@@ -193,7 +222,9 @@ describe("Runde", () => {
     for (let i = 0; i < 3; i++) {
       await user.click(screen.getByRole("button", { name: /^Ich bin / }));
       seen.push(await peek(user));
-      await user.click(screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }));
+      await user.click(
+        screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }),
+      );
     }
 
     const impostor = seen.find((t) => t.includes("Du bist der Impostor"));
@@ -213,7 +244,9 @@ describe("Runde", () => {
       await user.click(screen.getByRole("button", { name: /^Ich bin / }));
       const shown = await peek(user);
       if (!shown.includes("Du bist der Impostor")) word = shown.replace("Merk es dir.", "");
-      await user.click(screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }));
+      await user.click(
+        screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }),
+      );
     }
 
     expect(screen.getByRole("heading", { name: "Los geht's" })).toBeInTheDocument();
@@ -232,11 +265,83 @@ describe("Runde", () => {
     for (let i = 0; i < 3; i++) {
       await user.click(screen.getByRole("button", { name: /^Ich bin / }));
       await peek(user);
-      await user.click(screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }));
+      await user.click(
+        screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }),
+      );
     }
     await user.click(screen.getByRole("button", { name: "Auflösen" }));
     await user.click(screen.getByRole("button", { name: "Spiel beenden" }));
 
     expect(screen.getByRole("button", { name: "Neues Spiel" })).toBeInTheDocument();
+  });
+
+  it("zeigt das Wort auch per Tastatur (Leertaste halten)", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toSetup(user);
+    await user.click(screen.getByRole("button", { name: "Wörter verteilen" }));
+    await user.click(screen.getByRole("button", { name: /^Ich bin / }));
+
+    const holdPad = screen.getByRole("button", { name: "Zum Anzeigen gedrückt halten" });
+    // Long-press auf dem Handy darf kein Kontextmenü öffnen.
+    fireEvent.contextMenu(holdPad);
+    expect(holdPad).toHaveTextContent("Halten");
+
+    holdPad.focus();
+    await user.keyboard("[Space>]");
+    expect(holdPad).not.toHaveTextContent("Halten");
+
+    await user.keyboard("[/Space]");
+    expect(holdPad).toHaveTextContent("Halten");
+  });
+});
+
+describe("Navigation", () => {
+  it("führt über Zurück wieder bis zum Start", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toSetup(user);
+
+    await user.click(screen.getByRole("button", { name: "Zurück" }));
+    expect(screen.getByRole("heading", { name: "Wer spielt mit?" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Zurück" }));
+    expect(screen.getByRole("button", { name: "Neues Spiel" })).toBeInTheDocument();
+  });
+});
+
+describe("Timer", () => {
+  it("startet, pausiert und setzt zurück", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toSetup(user);
+    await user.click(screen.getByRole("button", { name: "Wörter verteilen" }));
+    for (let i = 0; i < 3; i++) {
+      await user.click(screen.getByRole("button", { name: /^Ich bin / }));
+      await peek(user);
+      await user.click(
+        screen.getByRole("button", { name: /Fertig – weitergeben|Alle haben geschaut/ }),
+      );
+    }
+
+    // Erst ab hier faken, sonst haengen die user-event-Delays der Navigation.
+    vi.useFakeTimers();
+    try {
+      const clock = screen.getByText((_, el) => el?.classList.contains("clock") ?? false);
+      expect(clock).toHaveTextContent("03:00");
+
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      act(() => vi.advanceTimersByTime(2000));
+      expect(clock).toHaveTextContent("02:58");
+
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      act(() => vi.advanceTimersByTime(2000));
+      expect(clock).toHaveTextContent("02:58");
+
+      fireEvent.click(screen.getByRole("button", { name: "Zurücksetzen" }));
+      expect(clock).toHaveTextContent("03:00");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
